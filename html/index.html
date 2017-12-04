@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>webcam demo</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <script src="decoder.js"></script>
+  <script src="player.js"></script>
+</head>
+<body>
+<canvas id="screen" style="width:320px;height:240px;" width="640", height="480"></canvas>
+<script>
+	var canvas = document.getElementById('screen');
+	var context = canvas.getContext('2d');
+
+	var socket = new WebSocket('ws:127.0.0.1:8080');
+	console.log("连接WebSocket服务器...");
+	var last_frame_time = 0;
+	var frame_count = 0;
+
+	socket.onopen = function(event) {
+		console.log("连接成功.");
+
+		socket.onmessage = function(event){
+			//console.log("onmessage", event);
+			if(frame_count == 0){
+				last_frame_time = new Date().getTime();
+			}
+			if (frame_count == 10){
+				var total = new Date().getTime() - last_frame_time;
+				console.log("fps=", 1000/(total/10));
+				frame_count = 0;
+			}else{
+				frame_count++;
+			}
+
+			//二进制消息说明是图像数据
+			redner_h264(context, event.data);
+		};
+
+		// 监听Socket的关闭
+		socket.onclose = function(event) {
+			console.log('Socket关闭.');
+		};
+	};
+</script>
+</body>
+</html>
