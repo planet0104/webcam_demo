@@ -1,9 +1,9 @@
 extern crate x264_sys;
 
 //编译依赖
-//sudo apt-get install libx264-dev 5M
-//sudo apt-get install libclang-dev 217M
-//sudo apt-get install clang 208M
+//sudo apt-get install libx264-dev
+//sudo apt-get install libclang-dev
+//sudo apt-get install clang
 //264转mp4
 //ffmpeg -i output.264 output.mp4
 
