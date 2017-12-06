@@ -183,6 +183,7 @@ var wa=[Db,rb];var xa=[Eb,qb,sb,pb];var ya=[Fb,Ya,Xa,Fb];var za=[Gb,tb];return{_
         /*if (this.options.rgb){
         
         no rgb in slice mode
+
         };*/
 
         infos[0].finishDecoding = nowValue();
@@ -317,7 +318,7 @@ var wa=[Db,rb];var xa=[Eb,qb,sb,pb];var ya=[Fb,Ya,Xa,Fb];var za=[Gb,tb];return{_
       
     }else{
       this.decode = function decode(typedAr, parInfo) {
-        // console.info("Decoding: " + buffer.length);
+        //console.info("Decoding: " + typedAr.length);
         // collect infos
         if (parInfo){
           this.infoAr.push(parInfo);
@@ -850,3 +851,4 @@ var wa=[Db,rb];var xa=[Eb,qb,sb,pb];var ya=[Fb,Ya,Xa,Fb];var za=[Gb,tb];return{_
   
   
 }));
+

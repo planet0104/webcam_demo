@@ -139,6 +139,7 @@ impl Webcam{
 
                         //计算耗费的时间，并延迟
                         let elapsed_ms = (start_time.elapsed().subsec_nanos()/1_000_000) as u64;
+                        //println!("time:{}", elapsed_ms);
                         if elapsed_ms<1000/fps as u64{
                             thread::sleep(Duration::from_millis(1000/fps as u64-elapsed_ms));
                         }

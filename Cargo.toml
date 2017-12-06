@@ -8,3 +8,9 @@ ws = "*"
 rscam = "*"
 x264-sys = "*"
 uuid = { version = "0.4", features = ["v4"] }
+
+#static http server
+iron = "0.5"
+mount = "0.3"
+staticfile = "0.4"
+router = "0.5"

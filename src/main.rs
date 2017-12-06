@@ -2,7 +2,21 @@ extern crate ws;
 extern crate rscam;
 extern crate uuid;
 extern crate x264_sys;
+use std::process::Command;
 
+//static http server
+extern crate iron;
+extern crate mount;
+extern crate staticfile;
+use iron::prelude::*;
+use iron::{ status, Iron };
+use mount::Mount;
+use staticfile::Static;
+use std::path::Path;
+use std::io::{ BufReader, Read };
+use std::thread;
+
+//webcam server
 mod x264_encoder;
 mod webcam;
 use webcam::Webcam;
@@ -15,7 +29,7 @@ use uuid::Uuid;
 fn main() {
 
     let webcam = Rc::new(RefCell::new(
-                Webcam::new("/dev/video0".to_string(), 16, 352, 288)
+                Webcam::new("/dev/video0".to_string(), 15, 352, 288)
             ));
 
     let websocket = ws::Builder::new().build(|out|{
@@ -27,9 +41,24 @@ fn main() {
         }
     }).unwrap();
 
-    println!("Server启动... ws::127.0.0.1:8080");
-    if let Err(error) = websocket.listen("192.168.201.2:8080") {
-        println!("Server启动失败: {:?}", error);
+    let local_ip = match ip_address("enp0s3"){
+        Some(ip) => ip,
+        _ => "127.0.0.1".to_string()
+    };
+
+    //start static http server
+    let http_server_addr = format!("{}:8081", local_ip);
+    println!("listen http://{}", http_server_addr);
+    thread::spawn(move || {
+        let mut mount = Mount::new();
+        mount.mount("/", Static::new(Path::new("html")));
+        println!("监听:");
+        Iron::new(mount).http(http_server_addr).unwrap();
+        println!("Http Server结束.");
+    });
+
+    if let Err(error) = websocket.listen(format!("{}:8082", local_ip)) {
+        println!("Websocket Server启动失败: {:?}", error);
     }
     println!("Server结束.");
 }
@@ -67,4 +96,32 @@ impl Handler for WebSocketServer {
     fn on_close(&mut self, _code: CloseCode, _reason: &str) {
         self.quit_webcam().unwrap_or_default();
     }
+}
+
+//获取IP地址
+fn ip_address<'a>(device:&'a str) -> Option<String>{
+    let result = execute(format!("{}{}{}", "LANG=C ifconfig ", device, " $NIC | awk '/inet addr:/{ print $2 }' | awk -F: '{print $2 }'").as_ref());
+    let local_ips = result.lines();
+    
+    for ip in local_ips{
+        if ip == "127.0.0.1"{
+            continue;
+        }
+        return Some(String::from(ip));    
+    }
+    None
+}
+
+//执行shell
+pub fn execute<'a>(cmd:&'a str) ->String{
+    let output = Command::new("sh")
+                .arg("-c")
+                .arg(cmd)
+                .output()
+                .expect("failed to execute process");
+    //let result = output.stdout;//Vec<u8>
+    String::from_utf8(output.stdout).unwrap_or_else(|err|{
+        println!("{:?}", err);
+        String::from("")
+    })
 }

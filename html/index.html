@@ -4,38 +4,39 @@
   <title>webcam demo</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <script src="decoder.js"></script>
-  <script src="player.js"></script>
+  <style>
+	  html,body{ padding: 0;margin: 0; }
+  </style>
+  <script src="Decoder.js"></script>
+  <script src="Player.js"></script>
 </head>
 <body>
-<canvas id="screen" style="width:320px;height:240px;" width="640", height="480"></canvas>
+<div id="root"></div>
+<div id="fps"></div>
+<button style="padding:10px" onclick="socket.close();">断开</button>
 <script>
-	var canvas = document.getElementById('screen');
-	var context = canvas.getContext('2d');
-
-	var socket = new WebSocket('ws:127.0.0.1:8080');
-	console.log("连接WebSocket服务器...");
+	var hostname = window.location.hostname;
+	var ws_addr = 'ws:'+hostname+':8082';
+	var socket = new WebSocket(ws_addr);
+	console.log("连接WebSocket服务器:"+ws_addr+' ...');
 	var last_frame_time = 0;
 	var frame_count = 0;
+
+	var onmessage_time = 0;
 
 	socket.onopen = function(event) {
 		console.log("连接成功.");
 
 		socket.onmessage = function(event){
-			//console.log("onmessage", event);
-			if(frame_count == 0){
-				last_frame_time = new Date().getTime();
-			}
-			if (frame_count == 10){
-				var total = new Date().getTime() - last_frame_time;
-				console.log("fps=", 1000/(total/10));
-				frame_count = 0;
-			}else{
-				frame_count++;
-			}
-
-			//二进制消息说明是图像数据
-			redner_h264(context, event.data);
+			onmessage_time = new Date().getTime();
+			
+			//console.log('redner_h264', blob);
+			var reader = new FileReader();
+			reader.onload = function(readerEvent){
+				//二进制消息说明是图像数据
+				redner_h264(new Uint8Array(readerEvent.target.result));
+			};
+			reader.readAsArrayBuffer(event.data);
 		};
 
 		// 监听Socket的关闭
@@ -43,6 +44,41 @@
 			console.log('Socket关闭.');
 		};
 	};
+
+	var player = new Player({
+      //useWorker: false,
+      reuseMemory: true,
+      webgl: false,
+      size: {
+        width: 352,
+        height: 288
+      }
+	});
+
+	//console.log(player);
+	document.getElementById("root").appendChild(player.canvas);
+	
+	//player.onPictureDecoded = function(buffer, width, height, infos){}
+
+	player.onRenderFrameComplete = function(options){
+		//console.log("onRenderFrameComplete", options, new Date().getTime()-onmessage_time);
+		if(frame_count == 0){
+			last_frame_time = new Date().getTime();
+		}
+		if (frame_count == 10){
+			var total = new Date().getTime() - last_frame_time;
+			//console.log("fps=", 1000/(total/10));
+			document.getElementById("fps").innerText = ""+(1000/(total/10));
+			frame_count = 0;
+		}else{
+			frame_count++;
+		}
+	}
+
+	function redner_h264(data){
+		//console.log("render:", data);
+		player.decode(new Uint8Array(data));
+	}
 </script>
 </body>
 </html>

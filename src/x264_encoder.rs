@@ -1,9 +1,9 @@
 extern crate x264_sys;
 
 //编译依赖
-//sudo apt-get install libx264-dev
-//sudo apt-get install libclang-dev
-//sudo apt-get install clang
+//sudo apt-get install libx264-dev 5M
+//sudo apt-get install libclang-dev 217M
+//sudo apt-get install clang 208M
 //264转mp4
 //ffmpeg -i output.264 output.mp4
 
@@ -160,9 +160,11 @@ impl X264Encoder{
     }
 
     pub fn destroy(&mut self){
+        println!("x264 destroy start...");
         unsafe { x264_encoder_close(self.enc) };
         unsafe { x264_picture_clean(&mut self.pic_in) };
-        unsafe { x264_picture_clean(&mut self.pic_out) };
+        //unsafe { x264_picture_clean(&mut self.pic_out) };
+        println!("x264 destroy send.");
     }
 
     pub fn frame(&self)->u32{
