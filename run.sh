@@ -1,1 +1,2 @@
-sudo target/release/webcam_demo
+cargo build --package webcam --release
+cargo run --release

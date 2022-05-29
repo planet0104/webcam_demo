@@ -1,5 +1,3 @@
-extern crate x264_sys;
-
 //编译依赖
 //sudo apt-get install libx264-dev 5M
 //sudo apt-get install libclang-dev 217M
@@ -7,23 +5,34 @@ extern crate x264_sys;
 //264转mp4
 //ffmpeg -i output.264 output.mp4
 
+//sudo apt install nasm
+
 //参考:
 //http://m.blog.csdn.net/liushu1231/article/details/9203239
 //http://www.voidcn.com/article/p-qbdtxdiz-bew.html
 use std::mem;
 use std::slice;
-use x264_sys::x264::*;
+use x264_dev::sys::X264NalT;
+use x264_dev::sys::X264ParamT;
+use x264_dev::sys::X264PictureT;
+use x264_dev::sys::X264T;
+use x264_dev::sys::x264_param_default_preset;
+// use x264_sys::x264::*;
+use x264_dev::sys::{x264_param_apply_profile, x264_encoder_encode, x264_encoder_open, x264_encoder_close, x264_picture_clean, x264_picture_init, x264_picture_alloc};
+use x264_dev::raw::{X264_CSP_I444, X264_CSP_YV24, X264_CSP_BGR, X264_CSP_RGB, X264_CSP_BGRA, X264_CSP_YV12,X264_CSP_NV12,X264_CSP_NV21,X264_CSP_I422,X264_CSP_YV16,X264_CSP_NV16,X264_SYNC_LOOKAHEAD_AUTO, X264_CSP_MASK, X264_CSP_I420, X264_B_ADAPT_TRELLIS, X264_CSP_HIGH_DEPTH};
 use std::os::raw::c_int;
 use std::ffi::CString;
 
 pub struct X264Encoder{
-    plane_size: [usize; 3],
+    pub plane_size: [usize; 3],
     nb_nal: c_int,
-    c_nals: *mut x264_nal_t,
-    pic_in: x264_picture_t,
-    pic_out: x264_picture_t,
+    c_nals: *mut X264NalT,
+    pic_in: X264PictureT,
+    pic_out: X264PictureT,
     current_frame: u32,
-    enc: *mut x264_t,
+    enc: *mut X264T,
+    width: i32,
+    height: i32,
 }
 
 impl X264Encoder{
@@ -31,8 +40,8 @@ impl X264Encoder{
         //ultrafast, superfast, veryfast, fast, slow, veryslow
         // "zerolatency" 
         //let mut param = Param::default_preset("veryfast", "zerolatency").unwrap();
-        let mut param:x264_param_t = unsafe { mem::uninitialized() };
-        match unsafe { x264_param_default_preset(&mut param as *mut x264_param_t,
+        let mut param:X264ParamT = unsafe { mem::zeroed() };
+        match unsafe { x264_param_default_preset(&mut param as *mut X264ParamT,
                                                 CString::new(preset.as_str()).unwrap().as_ptr(),
                                                 CString::new(tune.as_str()).unwrap().as_ptr()) } {
             -1 => return Err("Invalid Argument"),
@@ -76,12 +85,12 @@ impl X264Encoder{
 
         //* 编码需要的辅助变量
         let nb_nal: c_int = 0;
-        let c_nals: *mut x264_nal_t = unsafe { mem::uninitialized() };
-        let mut pic_in: x264_picture_t = unsafe { mem::uninitialized() };
-        let mut pic_out: x264_picture_t = unsafe { mem::uninitialized() };
+        let c_nals: *mut X264NalT = unsafe { mem::zeroed() };
+        let mut pic_in: X264PictureT = unsafe { mem::zeroed() };
+        let mut pic_out: X264PictureT = unsafe { mem::zeroed() };
         if unsafe {
-            x264_picture_init(&mut pic_out as *mut x264_picture_t);
-            x264_picture_alloc(&mut pic_in as *mut x264_picture_t,
+            x264_picture_init(&mut pic_out as *mut X264PictureT);
+            x264_picture_alloc(&mut pic_in as *mut X264PictureT,
                                 param.i_csp,
                                 param.i_width,
                                 param.i_height)
@@ -93,7 +102,7 @@ impl X264Encoder{
 
         //* 打开编码器句柄,通过x264_encoder_parameters得到设置给X264
         //* 的参数.通过x264_encoder_reconfig更新X264的参数
-        let enc = unsafe { x264_encoder_open(&mut param as *mut x264_param_t) };
+        let enc = unsafe { x264_encoder_open(&mut param as *mut X264ParamT) };
 
         if enc.is_null() {
             return Err("Out of Memory");
@@ -116,7 +125,17 @@ impl X264Encoder{
             pic_out: pic_out,
             current_frame: 0,
             enc: enc,
+            width,
+            height
         })
+    }
+
+    pub fn width(&self) -> i32{
+        self.width
+    }
+
+    pub fn height(&self) -> i32{
+        self.height
     }
 
     pub fn encode(&mut self, yu12_frame:Vec<u8>)->Result<Vec<u8>, &'static str>{
@@ -133,10 +152,10 @@ impl X264Encoder{
 
         let frame_size = unsafe {
             x264_encoder_encode(self.enc,
-                                &mut self.c_nals as *mut *mut x264_nal_t,
+                                &mut self.c_nals as *mut *mut X264NalT,
                                 &mut self.nb_nal as *mut c_int,
-                                &mut self.pic_in as *mut x264_picture_t,
-                                &mut self.pic_out as *mut x264_picture_t)
+                                &mut self.pic_in as *mut X264PictureT,
+                                &mut self.pic_out as *mut X264PictureT)
         };
         
         if frame_size < 0 {
